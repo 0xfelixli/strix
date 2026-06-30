@@ -15,6 +15,8 @@ Systematic testing across the full attack surface. Understand the application be
 
 **Whitebox (source available)**
 - Map codebase structure: modules, entry points, routing
+- Register the attack surface in the coverage manifest as you map it: seed file units with `seed_coverage_from_semgrep`, then `add_coverage_units` for routes/handlers/sinks. Every unit must be dispositioned via `mark_unit_reviewed` before the scan can finish.
+- Run a sink→source taint pass: enumerate dangerous sinks and trace each back to a source with `trace_symbol(direction=callers)` (see `source_aware_sast`)
 - Run `semgrep` first-pass triage to prioritize risky flows before deep manual review
 - Run at least one AST-structural mapping pass (`sg` and/or Tree-sitter), then use outputs for route, sink, and trust-boundary mapping
 - Keep AST output bounded to relevant paths and hypotheses; avoid whole-repo generic function dumps

@@ -14,6 +14,79 @@ from strix.core.agents import coordinator_from_context
 
 logger = logging.getLogger(__name__)
 
+_MAX_PENDING_LISTED = 25
+
+
+def _coverage_gate(*, parent_id: str | None, is_whitebox: bool = False) -> dict[str, Any] | None:
+    """Block root finish until the coverage manifest is enumerated and dispositioned.
+
+    Returns an error payload to short-circuit ``finish_scan``, or ``None`` to
+    proceed. Only the root agent is gated, and the ``STRIX_DISABLE_COVERAGE_GATE``
+    escape hatch disables it entirely.
+
+    Two ways to fail:
+
+    - **Empty manifest on a whitebox scan** — the agent never enumerated the
+      attack surface, so the gate has nothing to enforce. That is itself a
+      failure: a source-available scan must register units before finishing.
+      (Black-box scans, where the manifest is optional, pass on empty.)
+    - **Pending units** — at least one registered unit is still undispositioned.
+    """
+    if parent_id is not None:
+        return None
+    try:
+        from strix.config import load_settings
+
+        if load_settings().agents.disable_coverage_gate:
+            return None
+
+        from strix.tools.coverage.tools import manifest_is_empty, pending_units
+
+        if manifest_is_empty():
+            return {
+                "success": False,
+                "scan_completed": False,
+                "error": (
+                    "Coverage gate: no attack-surface units were registered for this "
+                    "whitebox scan. Enumerate the surface first — call "
+                    "seed_coverage_from_semgrep on your semgrep report, then "
+                    "add_coverage_units for routes/handlers/sinks — review each, and "
+                    "only then finish. This blocks finishing on an un-enumerated scan."
+                ),
+                "pending_count": 0,
+            } if is_whitebox else None
+        pending = pending_units()
+    except Exception:
+        logger.exception("coverage gate check failed; allowing finish")
+        return None
+
+    if not pending:
+        return None
+
+    listed = pending[:_MAX_PENDING_LISTED]
+    return {
+        "success": False,
+        "scan_completed": False,
+        "error": (
+            f"Coverage gate: {len(pending)} attack-surface unit(s) are still pending review. "
+            "Every coverage unit must be dispositioned via mark_unit_reviewed "
+            "(reviewed or ruled_out) before finishing. Assign finders to the open units, or "
+            "bulk-disposition with one mark_unit_reviewed call passing all the unit_ids below. "
+            "Use list_coverage to see the full list, then call finish_scan again."
+        ),
+        "pending_count": len(pending),
+        "pending_units": [
+            {
+                "unit_id": u.get("unit_id"),
+                "kind": u.get("kind"),
+                "location": u.get("location"),
+                "title": u.get("title"),
+            }
+            for u in listed
+        ],
+        "truncated": len(pending) > len(listed),
+    }
+
 
 def _do_finish(
     *,
@@ -169,6 +242,10 @@ async def finish_scan(
             ensure_ascii=False,
             default=str,
         )
+
+    gate = _coverage_gate(parent_id=parent_id, is_whitebox=bool(inner.get("is_whitebox")))
+    if gate is not None:
+        return json.dumps(gate, ensure_ascii=False, default=str)
 
     result = await asyncio.to_thread(
         _do_finish,

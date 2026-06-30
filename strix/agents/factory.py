@@ -24,6 +24,13 @@ from strix.tools.agents_graph.tools import (
     view_agent_graph,
     wait_for_message,
 )
+from strix.tools.code_graph.tools import trace_symbol
+from strix.tools.coverage.tools import (
+    add_coverage_units,
+    list_coverage,
+    mark_unit_reviewed,
+    seed_coverage_from_semgrep,
+)
 from strix.tools.finish.tool import finish_scan
 from strix.tools.load_skill.tool import load_skill
 from strix.tools.notes.tools import (
@@ -346,6 +353,11 @@ _BASE_TOOLS: tuple[Tool, ...] = (
     wait_for_message,
     create_agent,
     stop_agent,
+    add_coverage_units,
+    mark_unit_reviewed,
+    list_coverage,
+    seed_coverage_from_semgrep,
+    trace_symbol,
 )
 
 

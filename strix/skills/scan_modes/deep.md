@@ -15,6 +15,8 @@ Thorough understanding before exploitation. Test every parameter, every endpoint
 
 **Whitebox (source available)**
 - Map every file, module, and code path in the repository
+- Build the coverage manifest as the backbone of recall: `seed_coverage_from_semgrep` to seed file units, then `add_coverage_units` for every route/handler/sink/entrypoint. The recall gate blocks `finish_scan` until every unit is dispositioned via `mark_unit_reviewed`
+- Drive review with a sink→source taint pass: enumerate dangerous sinks and trace each back to a source via `trace_symbol(direction=callers)` across files (see `source_aware_sast`)
 - Start with broad source-aware triage (`semgrep`, `ast-grep`, `gitleaks`, `trufflehog`, `trivy fs`) and use outputs to drive deep review
 - Execute at least one structural AST pass (`sg` and/or Tree-sitter) per repository and store artifacts for reuse
 - Keep AST artifacts bounded and query-driven (target relevant paths/sinks first; avoid whole-repo generic function dumps)

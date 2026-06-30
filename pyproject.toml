@@ -239,6 +239,9 @@ ignore = [
 "strix/interface/tui/app.py" = ["BLE001", "PLC0415", "PLR0912", "PLR0915", "SIM105"]
 "strix/interface/main.py" = ["BLE001", "PLC0415", "PLR0912", "PLR0915"]
 "strix/interface/tui/renderers/agent_message_renderer.py" = ["PLC0415"]
+# Tests: pytest fixtures are injected as args used only for setup/teardown
+# (ARG001), and typing-only imports stay eager for readability (TC003).
+"tests/**/*.py" = ["ARG001", "TC003"]
 
 [tool.ruff.lint.isort]
 force-single-line = false

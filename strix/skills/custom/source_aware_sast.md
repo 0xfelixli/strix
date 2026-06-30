@@ -138,6 +138,52 @@ lighter syntax/anti-pattern check when ESLint is over-eager. The
 `JS-Snooper` / `jsniper.sh` tools (in `katana.md`) are the right next
 step to mine those bundles for endpoint candidates.
 
+## Taint Tracking: Sink → Source (Highest-Yield Pass)
+
+Most vulnerabilities reduce to one sentence: **untrusted data reaches a dangerous
+operation without adequate validation.** Instead of reading code hoping to spot
+bugs, enumerate the dangerous operations (sinks) and trace each one *backwards*
+to its inputs (sources). This is the single highest-recall whitebox technique.
+
+**Method:**
+
+1. **Enumerate sinks** across the repo (grep / `sg`). Register each as a
+   `kind=sink` coverage unit via `add_coverage_units` so it is gated to a
+   disposition.
+2. **Trace each sink backwards** to where its arguments come from. Use
+   `trace_symbol(symbol=<enclosing function>, direction=callers)` to find the
+   call sites — the upstream of the chain often lives in *other files*. Follow
+   until you reach a **source** (user/attacker-controlled input).
+3. **Check the path for sanitizers** — parameterization, escaping, validation,
+   allow-lists, authorization. A sink fed by a source with no effective
+   sanitizer in between is a finding.
+4. **Disposition the unit** (`mark_unit_reviewed`): `reviewed` with the
+   source→sink note, or `ruled_out` if the path is unreachable / properly
+   guarded.
+
+**Sources (attacker-controlled):** request params/body/query, headers, cookies,
+path segments, uploaded filenames/content, webhooks, message-queue payloads, and
+*stored* user data read back later (second-order). For EVM: `msg.data`,
+function arguments, `msg.sender`-derived trust, oracle return values.
+
+**Dangerous sinks to enumerate:**
+
+- **SQL/NoSQL** — string-built queries, `.raw()`, `.extra()`, `$where`, query
+  concatenation.
+- **Command/exec** — `os.system`, `subprocess(..., shell=True)`, `exec`/`eval`,
+  `child_process.exec`, backticks.
+- **Deserialization** — `pickle`, `yaml.load`, `Marshal`, Java `readObject`,
+  `unserialize`.
+- **Template/SSTI** — render-from-string, `Template(...)` on user input.
+- **Path/file** — `open`/`readFile`/`sendFile`/path joins with user input
+  (traversal), archive extraction.
+- **SSRF egress** — outbound HTTP/`fetch`/`requests` with user-controlled URL.
+- **Redirect/headers** — `Location`/redirect from user input, header injection.
+- **EVM/Solidity** — low-level `call`/`delegatecall`/`staticcall`, `transfer`/
+  `send`, `selfdestruct`, `ecrecover` without nonce/replay protection,
+  unchecked external-call return values, state writes after external calls
+  (reentrancy), arithmetic/rounding in accounting, `tx.origin` auth.
+
 ## Converting Static Signals Into Findings
 
 1. Rank candidates by impact and exploitability.

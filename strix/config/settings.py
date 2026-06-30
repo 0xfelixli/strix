@@ -69,6 +69,11 @@ class AgentSettings(BaseSettings):
     # ``remediation_steps``. Off by default (no behavior change for others).
     disable_fix_agents: bool = Field(default=False, alias="STRIX_DISABLE_FIX_AGENTS")
 
+    # When true, ``finish_scan`` no longer blocks on undispositioned coverage
+    # units. The manifest is still tracked and reported; only the hard gate is
+    # lifted. Off by default — the gate is the point of the coverage manifest.
+    disable_coverage_gate: bool = Field(default=False, alias="STRIX_DISABLE_COVERAGE_GATE")
+
 
 class TelemetrySettings(BaseSettings):
     model_config = _BASE_CONFIG

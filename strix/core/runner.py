@@ -104,11 +104,13 @@ async def run_strix_scan(
         coordinator = AgentCoordinator()
     coordinator.set_snapshot_path(agents_path)
 
+    from strix.tools.coverage.tools import hydrate_coverage_from_disk
     from strix.tools.notes.tools import hydrate_notes_from_disk
     from strix.tools.todo.tools import hydrate_todos_from_disk
 
     hydrate_todos_from_disk(state_dir)
     hydrate_notes_from_disk(state_dir)
+    hydrate_coverage_from_disk(state_dir)
 
     root_id: str | None = None
     if is_resume:
@@ -219,6 +221,7 @@ async def run_strix_scan(
             "agent_id": root_id,
             "parent_id": None,
             "interactive": interactive,
+            "is_whitebox": is_whitebox,
             "spawn_child_agent": spawn_child_agent,
         }
 
