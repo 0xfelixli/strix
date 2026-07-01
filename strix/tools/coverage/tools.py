@@ -298,6 +298,7 @@ async def _seed_from_semgrep_impl(  # noqa: PLR0911
     session = ctx_inner.get("sandbox_session")
     if session is None:
         return {"success": False, "error": "No sandbox session in context", "added": 0}
+    workspace_root = ctx_inner.get("workspace_root") or _WORKSPACE_ROOT
     safe_path = semgrep_json_path.strip()
     if not safe_path:
         return {"success": False, "error": "semgrep_json_path is empty", "added": 0}
@@ -305,7 +306,7 @@ async def _seed_from_semgrep_impl(  # noqa: PLR0911
         result = await session.exec(
             "bash",
             "-lc",
-            f"cd {_WORKSPACE_ROOT} && cat -- {shlex.quote(safe_path)}",
+            f"cd {shlex.quote(workspace_root)} && cat -- {shlex.quote(safe_path)}",
             timeout=30,
         )
     except Exception as e:
@@ -375,9 +376,7 @@ async def add_coverage_units(ctx: RunContextWrapper, units: str) -> str:
 
 
 @function_tool(timeout=30)
-async def mark_unit_reviewed(
-    ctx: RunContextWrapper, unit_ids: str, status: str, note: str
-) -> str:
+async def mark_unit_reviewed(ctx: RunContextWrapper, unit_ids: str, status: str, note: str) -> str:
     """Disposition one or more coverage units after reviewing them.
 
     This is how the coverage gate is cleared. ``reviewed`` means you actively analyzed

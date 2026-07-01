@@ -73,7 +73,7 @@ Complex findings warrant specialized subagents:
 - Discovery agent finds potential vulnerability
 - Validation agent confirms exploitability
 - Reporting agent documents with reproduction steps
-- Fix agent provides remediation (if needed)
+- Remediation is documented in the report only; do not create fix agents or modify target code
 
 **Resource Efficiency**
 

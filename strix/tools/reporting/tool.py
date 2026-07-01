@@ -139,14 +139,22 @@ def _calculate_cvss(breakdown: dict[str, str]) -> tuple[float, str, str]:
         return score, severity, vector
 
 
+# ``poc_script_code`` is intentionally NOT required: exploitable bugs (RCE/SQLi/
+# XSS/IDOR/…) should still ship a runnable exploit, but non-exploitable weaknesses
+# (weak crypto, DEBUG/SECRET_KEY misconfig, missing cookie flags, user enumeration)
+# have no runnable payload — forcing one blocks those findings entirely. The
+# always-required ``poc_description`` keeps every finding accountable by explaining
+# the concrete attack path / impact even when no script exists.
 _REQUIRED_FIELDS = {
     "title": "Title cannot be empty",
     "description": "Description cannot be empty",
     "impact": "Impact cannot be empty",
     "target": "Target cannot be empty",
     "technical_analysis": "Technical analysis cannot be empty",
-    "poc_description": "PoC description cannot be empty",
-    "poc_script_code": "PoC script/code is REQUIRED - provide the actual exploit/payload",
+    "poc_description": (
+        "PoC description cannot be empty — explain how the issue is attacked and its "
+        "impact (required even when no runnable exploit script applies)"
+    ),
     "remediation_steps": "Remediation steps cannot be empty",
 }
 
@@ -307,9 +315,9 @@ async def create_vulnerability_report(
     target: str,
     technical_analysis: str,
     poc_description: str,
-    poc_script_code: str,
     remediation_steps: str,
     cvss_breakdown: dict[str, str],
+    poc_script_code: str = "",
     endpoint: str | None = None,
     method: str | None = None,
     cve: str | None = None,
@@ -411,8 +419,15 @@ async def create_vulnerability_report(
         impact: What an attacker achieves; business risk; data at risk.
         target: Affected URL / domain / repository.
         technical_analysis: The mechanism and root cause.
-        poc_description: Step-by-step reproduction.
-        poc_script_code: Working PoC (Python preferred).
+        poc_description: How the issue is attacked and its impact — REQUIRED for
+            every finding, including non-exploitable weaknesses (weak crypto,
+            DEBUG/SECRET_KEY misconfig, missing cookie flags, user enumeration):
+            describe the concrete attack path / why it's dangerous even when no
+            runnable exploit exists.
+        poc_script_code: Working runnable PoC (Python preferred). Provide it for
+            any exploitable bug (RCE/SQLi/XSS/IDOR/…). May be omitted for weaknesses
+            that have no runnable payload — poc_description then carries the attack
+            narrative.
         remediation_steps: Specific, actionable fix.
         cvss_breakdown: 8-metric object per the format above.
         endpoint: API path / Git path (e.g. ``/api/login``).

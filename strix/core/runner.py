@@ -170,7 +170,7 @@ async def run_strix_scan(
         )
         hooks = ReportUsageHooks(model=resolved_model, max_budget_usd=max_budget_usd)
 
-        scope_context = build_scope_context(scan_config)
+        scope_context = build_scope_context(scan_config, workspace_root=bundle["workspace_root"])
 
         root_agent = build_strix_agent(
             name="strix",
@@ -217,7 +217,7 @@ async def run_strix_scan(
         context: dict[str, Any] = {
             "coordinator": coordinator,
             "sandbox_session": bundle["session"],
-            "caido_client": bundle["caido_client"],
+            "workspace_root": bundle["workspace_root"],
             "agent_id": root_id,
             "parent_id": None,
             "interactive": interactive,

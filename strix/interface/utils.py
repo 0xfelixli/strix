@@ -392,12 +392,6 @@ def build_tui_stats_text(report_state: Any) -> Text:
             stats_text.append(" · ", style="white")
             stats_text.append(f"${cost:.2f}", style="white")
 
-    caido_url = getattr(report_state, "caido_url", None)
-    if caido_url:
-        stats_text.append("\n")
-        stats_text.append("Caido: ", style="bold white")
-        stats_text.append(caido_url, style="white")
-
     return stats_text
 
 

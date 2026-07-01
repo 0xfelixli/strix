@@ -45,7 +45,12 @@ async def test_persistent_rate_limit_stops_gracefully(
     monkeypatch.setattr(notes_tools, "hydrate_notes_from_disk", lambda _state_dir: None)
 
     async def _create_or_reuse(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
-        return {"client": object(), "session": object(), "caido_client": None}
+        return {
+            "client": object(),
+            "session": object(),
+            "caido_client": None,
+            "workspace_root": "/workspace",
+        }
 
     async def _cleanup(*_args: Any, **_kwargs: Any) -> None:
         return None
@@ -54,7 +59,7 @@ async def test_persistent_rate_limit_stops_gracefully(
     monkeypatch.setattr(runner.session_manager, "cleanup", _cleanup)
 
     monkeypatch.setattr(runner, "build_root_task", lambda _scan_config: "task")
-    monkeypatch.setattr(runner, "build_scope_context", lambda _scan_config: "")
+    monkeypatch.setattr(runner, "build_scope_context", lambda *_a, **_k: "")
     monkeypatch.setattr(runner, "make_model_settings", lambda *_args, **_kwargs: object())
     monkeypatch.setattr(runner, "build_strix_agent", lambda **_kwargs: object())
     monkeypatch.setattr(runner, "make_child_factory", lambda **_kwargs: lambda **_k: object())

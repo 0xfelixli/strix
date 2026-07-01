@@ -46,18 +46,26 @@ def test_parse_grep_output_respects_cap() -> None:
 
 
 def test_build_grep_command_quotes_path_and_excludes() -> None:
-    cmd = cg._build_grep_command("build_query", "src/api")
+    cmd = cg._build_grep_command("build_query", "src/api", "/workspace")
     assert "\\bbuild_query\\b" in cmd
     assert "src/api" in cmd
     assert "--exclude-dir=node_modules" in cmd
+    assert "cd /workspace &&" in cmd
+
+
+def test_build_grep_command_honors_local_workspace_root() -> None:
+    # Under the local backend the root is a real host path, and it must be
+    # shell-quoted so paths with spaces / metacharacters can't break the cd.
+    cmd = cg._build_grep_command("x", ".", "/Users/me/my repo")
+    assert "cd '/Users/me/my repo' &&" in cmd
 
 
 def test_build_grep_command_neutralizes_shell_metacharacters() -> None:
     # shlex.quote must prevent variable expansion / quote breakout on odd paths.
-    cmd = cg._build_grep_command("x", "a/$HOME/b")
+    cmd = cg._build_grep_command("x", "a/$HOME/b", "/workspace")
     assert "$HOME" in cmd  # present literally...
     assert "'a/$HOME/b'" in cmd  # ...inside single quotes, so the shell won't expand it
 
-    cmd2 = cg._build_grep_command("x", 'a"b')
+    cmd2 = cg._build_grep_command("x", 'a"b', "/workspace")
     # the path is single-quoted, so the embedded double quote cannot break out
     assert "'a\"b'" in cmd2

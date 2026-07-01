@@ -16,6 +16,7 @@ from agents.tool import CustomTool, FunctionTool, Tool
 from pydantic import ValidationError
 
 from strix.agents.prompt import render_system_prompt
+from strix.config import load_settings
 from strix.tools.agents_graph.tools import (
     agent_finish,
     create_agent,
@@ -39,14 +40,6 @@ from strix.tools.notes.tools import (
     get_note,
     list_notes,
     update_note,
-)
-from strix.tools.proxy.tools import (
-    list_requests,
-    list_sitemap,
-    repeat_request,
-    scope_rules,
-    view_request,
-    view_sitemap_entry,
 )
 from strix.tools.reporting.tool import create_vulnerability_report
 from strix.tools.thinking.tool import think
@@ -342,12 +335,6 @@ _BASE_TOOLS: tuple[Tool, ...] = (
     delete_note,
     web_search,
     create_vulnerability_report,
-    list_requests,
-    view_request,
-    repeat_request,
-    list_sitemap,
-    view_sitemap_entry,
-    scope_rules,
     view_agent_graph,
     send_message_to_agent,
     wait_for_message,
@@ -402,24 +389,32 @@ def build_strix_agent(
         is_whitebox,
     )
 
+    # Shell (read via cat/grep, run semgrep/ast-grep) is always present. The
+    # Filesystem capability only adds apply_patch (write/edit) + view_image; in
+    # read-only audit mode (STRIX_READONLY) we drop it so the agent has no
+    # structured way to modify source.
+    capabilities: list[Any] = []
+    if not load_settings().agents.readonly:
+        capabilities.append(
+            Filesystem(
+                configure_tools=(
+                    _configure_chat_completions_filesystem_tools if chat_completions_tools else None
+                ),
+            ),
+        )
+    capabilities.append(
+        Shell(
+            configure_tools=_make_shell_configurator(chat_completions=chat_completions_tools),
+        ),
+    )
+
     return SandboxAgent(
         name=name,
         instructions=instructions,
         tools=tools,
         tool_use_behavior=_finish_tool_use_behavior,
         model=None,
-        capabilities=[
-            Filesystem(
-                configure_tools=(
-                    _configure_chat_completions_filesystem_tools if chat_completions_tools else None
-                ),
-            ),
-            Shell(
-                configure_tools=_make_shell_configurator(
-                    chat_completions=chat_completions_tools,
-                ),
-            ),
-        ],
+        capabilities=capabilities,
     )
 
 

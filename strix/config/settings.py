@@ -47,6 +47,10 @@ class RuntimeSettings(BaseSettings):
         alias="STRIX_IMAGE",
     )
     backend: str = Field(default="docker", alias="STRIX_RUNTIME_BACKEND")
+    # local backend only: scan a copy-on-write clone of the source tree instead
+    # of the source in place, so the agent's writes (apply_patch, PoC/analysis
+    # artifacts) never touch the real repo. Off by default (zero-copy in place).
+    local_isolate: bool = Field(default=False, alias="STRIX_LOCAL_ISOLATE")
     # Hard cap on a local target's size before we refuse to stream it into the
     # sandbox file-by-file (the SDK copies every file individually, which stalls
     # on large repos). Above this, the user must bind-mount via ``--mount``.
@@ -73,6 +77,13 @@ class AgentSettings(BaseSettings):
     # units. The manifest is still tracked and reported; only the hard gate is
     # lifted. Off by default — the gate is the point of the coverage manifest.
     disable_coverage_gate: bool = Field(default=False, alias="STRIX_DISABLE_COVERAGE_GATE")
+
+    # When true, agents are built without the Filesystem capability, dropping the
+    # write/edit tool (``apply_patch``) and ``view_image``. Read-only source audit:
+    # the agent can still read via shell (cat/grep) but has no structured way to
+    # modify files. Off by default. Pair with STRIX_LOCAL_ISOLATE for hard source
+    # protection.
+    readonly: bool = Field(default=False, alias="STRIX_READONLY")
 
 
 class TelemetrySettings(BaseSettings):

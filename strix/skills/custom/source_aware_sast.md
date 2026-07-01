@@ -23,8 +23,29 @@ Run this baseline once per repository before deep narrowing:
 ART=/workspace/.strix-source-aware
 mkdir -p "$ART"
 
-semgrep scan --config p/default --config p/golang --config p/secrets \
-  --metrics=off --json --output "$ART/semgrep.json" .
+# Language-adaptive rulesets. NEVER use `--config auto` — it ships the repo's
+# language/framework profile to semgrep.dev to pick rules (data egress). Instead:
+# a fixed cross-language baseline + registry packs for languages actually present.
+# Do NOT hardcode one language (e.g. p/golang) — that misses everything on a repo
+# in another language (Django DEBUG/SECRET_KEY/weak-hash/cookie rules live in
+# p/python + p/django, not p/golang).
+CONFIGS="--config p/default --config p/secrets --config p/owasp-top-ten"   # baseline, any repo
+present() { find . -type f -name "$1" -not -path '*/.*' 2>/dev/null | head -1 | grep -q .; }
+present '*.py'   && CONFIGS="$CONFIGS --config p/python"
+{ present 'manage.py' || present 'settings.py'; } && CONFIGS="$CONFIGS --config p/django"
+present '*.go'   && CONFIGS="$CONFIGS --config p/golang"
+present '*.js'   && CONFIGS="$CONFIGS --config p/javascript"
+{ present '*.ts' || present '*.tsx'; } && CONFIGS="$CONFIGS --config p/typescript"
+present '*.java' && CONFIGS="$CONFIGS --config p/java"
+present '*.rb'   && CONFIGS="$CONFIGS --config p/ruby"
+present '*.php'  && CONFIGS="$CONFIGS --config p/php"
+present '*.cs'   && CONFIGS="$CONFIGS --config p/csharp"
+# Languages semgrep has no mature registry pack for (Dart, Kotlin, Swift, …) get
+# only the baseline here — their real coverage comes from the hygiene checklist +
+# your own reading, which are language-agnostic. Do not skip those files.
+echo "semgrep configs: $CONFIGS"
+
+semgrep scan $CONFIGS --metrics=off --json --output "$ART/semgrep.json" .
 # Build deterministic AST targets from semgrep scope (no hardcoded path guessing)
 python3 - <<'PY'
 import json

@@ -114,7 +114,7 @@ Individual bugs are starting points. Chain them for maximum impact:
 
 - Combine information disclosure with access control bypass
 - Chain SSRF to reach internal services
-- Use low-severity findings to enable high-impact attacks
+- Report every low-severity / hygiene finding on its own AND use them to enable higher-impact chains where possible. Low severity ranks it lower — never a reason to skip filing it.
 - Build multi-step attack paths that automated tools miss
 - Cross component boundaries: user → admin, external → internal, read → write, single-tenant → cross-tenant
 

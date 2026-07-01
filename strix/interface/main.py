@@ -42,7 +42,6 @@ from strix.interface.utils import (
     generate_run_name,
     image_exists,
     infer_target_type,
-    is_whitebox_scan,
     process_pull_line,
     resolve_diff_scope_context,
     rewrite_localhost_targets,
@@ -50,7 +49,6 @@ from strix.interface.utils import (
 )
 from strix.report.state import get_global_report_state
 from strix.report.writer import read_run_record, write_run_record
-from strix.telemetry import posthog, scarf
 from strix.telemetry.logging import configure_dependency_logging
 
 
@@ -310,6 +308,7 @@ def _positive_budget(value: str) -> float:
     except ValueError as exc:
         raise argparse.ArgumentTypeError(f"invalid float value: {value!r}") from exc
     import math
+
     if not math.isfinite(budget) or budget <= 0:
         raise argparse.ArgumentTypeError("must be a finite number greater than 0")
     return budget
@@ -534,9 +533,16 @@ Examples:
         assign_workspace_subdirs(args.targets_info)
         rewrite_localhost_targets(args.targets_info, HOST_GATEWAY_HOSTNAME)
 
-        max_local_copy_mb = load_settings().runtime.max_local_copy_mb
+        # The local backend runs against the source tree in place (zero-copy),
+        # so nothing is streamed into a sandbox and the size limit does not apply.
+        settings = load_settings()
+        max_local_copy_mb = settings.runtime.max_local_copy_mb
         max_copy_bytes = max_local_copy_mb * 1024 * 1024
-        oversized = find_oversized_local_targets(args.targets_info, max_copy_bytes)
+        oversized = (
+            []
+            if settings.runtime.backend == "local"
+            else find_oversized_local_targets(args.targets_info, max_copy_bytes)
+        )
         if oversized:
             details = "; ".join(
                 f"{path} ({size / (1024 * 1024):.0f} MB)" for path, size in oversized
@@ -829,16 +835,6 @@ def main() -> None:
 
         _persist_run_record(args)
 
-    _telemetry_start_kwargs = {
-        "model": load_settings().llm.model,
-        "scan_mode": args.scan_mode,
-        "is_whitebox": is_whitebox_scan(args.targets_info),
-        "interactive": not args.non_interactive,
-        "has_instructions": bool(args.instruction),
-    }
-    posthog.start(**_telemetry_start_kwargs)
-    scarf.start(**_telemetry_start_kwargs)
-
     exit_reason = "user_exit"
     try:
         if args.non_interactive:
@@ -849,8 +845,6 @@ def main() -> None:
         exit_reason = "interrupted"
     except Exception:
         exit_reason = "error"
-        posthog.error("unhandled_exception")
-        scarf.error("unhandled_exception")
         raise
     finally:
         report_state = get_global_report_state()
@@ -860,8 +854,6 @@ def main() -> None:
                 "stopped",
             )
             report_state.cleanup(status=status)
-            posthog.end(report_state, exit_reason=exit_reason)
-            scarf.end(report_state, exit_reason=exit_reason)
 
     results_path = run_dir_for(args.run_name)
     display_completion_message(args, results_path)

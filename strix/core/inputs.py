@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from agents.model_settings import ModelSettings
 from openai.types.shared import Reasoning
 
+from strix.config import load_settings
 from strix.config.models import DEFAULT_MODEL_RETRY, model_supports_reasoning
 
 
@@ -79,7 +80,9 @@ def build_root_task(scan_config: dict[str, Any]) -> str:
     return task
 
 
-def build_scope_context(scan_config: dict[str, Any]) -> dict[str, Any]:
+def build_scope_context(
+    scan_config: dict[str, Any], workspace_root: str | None = None
+) -> dict[str, Any]:
     authorized: list[dict[str, str]] = []
     value_keys = {
         "repository": "target_repo",
@@ -87,6 +90,12 @@ def build_scope_context(scan_config: dict[str, Any]) -> dict[str, Any]:
         "web_application": "target_url",
         "ip_address": "target_ip",
     }
+    # Under the local backend the agent's cwd is ``workspace_root`` — either the
+    # real source tree (zero-copy) or its CoW clone (STRIX_LOCAL_ISOLATE). Tell it
+    # that exact path so the scope prompt matches where its shells actually land;
+    # a stale ``/workspace/...`` or the original path (when isolating) would point
+    # outside the sandbox root.
+    is_local_backend = load_settings().runtime.backend == "local"
     for target in scan_config.get("targets", []) or []:
         ttype = target.get("type", "unknown")
         details = target.get("details") or {}
@@ -94,7 +103,12 @@ def build_scope_context(scan_config: dict[str, Any]) -> dict[str, Any]:
         value = details.get(key, "") if key is not None else target.get("original", "")
 
         workspace_subdir = details.get("workspace_subdir")
-        workspace_path = f"/workspace/{workspace_subdir}" if workspace_subdir else ""
+        if is_local_backend and ttype == "local_code":
+            workspace_path = workspace_root or str(details.get("target_path", "") or value)
+        elif workspace_subdir:
+            workspace_path = f"/workspace/{workspace_subdir}"
+        else:
+            workspace_path = ""
         authorized.append(
             {"type": ttype, "value": value, "workspace_path": workspace_path},
         )

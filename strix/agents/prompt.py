@@ -41,23 +41,20 @@ def _resolve_skills(
 
     1. Whatever the caller asked for, in order.
     2. ``scan_modes/<mode>`` (always).
-    3. ``tooling/agent_browser`` (always — every agent has shell + the
-       agent-browser CLI).
-    4. ``tooling/python`` (always — Python runs through ``exec_command``;
-       sandbox scripts can import ``caido_api`` for Caido automation).
-    5. ``coordination/root_agent`` for the root agent only — orchestration
+    3. ``tooling/python`` (always — Python runs through ``exec_command``).
+    4. ``coordination/root_agent`` for the root agent only — orchestration
        guidance for delegating to specialist subagents.
-    6. Whitebox-specific skills if applicable.
+    5. Whitebox-specific skills if applicable.
     """
     ordered: list[str] = list(requested or [])
     ordered.append(f"scan_modes/{scan_mode}")
-    ordered.append("tooling/agent_browser")
     ordered.append("tooling/python")
     if is_root:
         ordered.append("coordination/root_agent")
     if is_whitebox:
         ordered.append("coordination/source_aware_whitebox")
         ordered.append("custom/source_aware_sast")
+        ordered.append("custom/hygiene_checklist")
 
     deduped: list[str] = []
     seen: set[str] = set()
@@ -96,11 +93,7 @@ def render_system_prompt(
             is_root=is_root,
         )
         skill_content = load_skills(skills_to_load)
-        if (
-            is_root
-            and "root_agent" in skill_content
-            and load_settings().agents.disable_fix_agents
-        ):
+        if is_root and "root_agent" in skill_content and load_settings().agents.disable_fix_agents:
             skill_content["root_agent"] += _DISABLE_FIX_AGENTS_DIRECTIVE
         env.globals["get_skill"] = lambda name: skill_content.get(name, "")
 

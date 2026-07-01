@@ -16,7 +16,6 @@ from strix.report.writer import (
     write_run_record,
     write_vulnerabilities,
 )
-from strix.telemetry import posthog, scarf
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +66,6 @@ class ReportState:
         self._run_dir: Path | None = None
         self._saved_vuln_ids: set[str] = set()
 
-        self.caido_url: str | None = None
         self.vulnerability_found_callback: Callable[[dict[str, Any]], None] | None = None
 
     def get_run_dir(self) -> Path:
@@ -201,8 +199,6 @@ class ReportState:
 
         self.vulnerability_reports.append(report)
         logger.info(f"Added vulnerability report: {report_id} - {title}")
-        posthog.finding(severity)
-        scarf.finding(severity)
 
         if self.vulnerability_found_callback:
             self.vulnerability_found_callback(report)
@@ -261,8 +257,6 @@ class ReportState:
 
         logger.info("Updated scan final fields")
         self.save_run_data(mark_complete=True)
-        posthog.end(self, exit_reason="finished_by_tool")
-        scarf.end(self, exit_reason="finished_by_tool")
 
     def set_scan_config(self, config: dict[str, Any]) -> None:
         self.scan_config = config

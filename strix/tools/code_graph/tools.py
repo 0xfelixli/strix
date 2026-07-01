@@ -84,14 +84,14 @@ def _parse_grep_output(symbol: str, stdout: str, max_per_bucket: int) -> dict[st
     return {"definitions": definitions, "callers": callers, "references": references}
 
 
-def _build_grep_command(symbol: str, path: str) -> str:
+def _build_grep_command(symbol: str, path: str, workspace_root: str) -> str:
     excludes = " ".join(f"--exclude-dir={d}" for d in _EXCLUDE_DIRS)
     # shlex.quote gives correct POSIX-shell quoting for the path (no variable
     # expansion / quote-breakout on odd paths); symbol is already validated to a
     # bare identifier so it is safe inside the single-quoted grep pattern.
     quoted_path = shlex.quote(path)
     return (
-        f"cd {_WORKSPACE_ROOT} && grep -rnE {excludes} "
+        f"cd {shlex.quote(workspace_root)} && grep -rnE {excludes} "
         f"-e '\\b{symbol}\\b' {quoted_path} 2>/dev/null | head -n {_GREP_LINE_CAP}"
     )
 
@@ -119,8 +119,9 @@ async def _trace_symbol_impl(
     if session is None:
         return {"success": False, "error": "No sandbox session in context"}
 
+    workspace_root = ctx_inner.get("workspace_root") or _WORKSPACE_ROOT
     target_path = (path or ".").strip() or "."
-    command = _build_grep_command(symbol, target_path)
+    command = _build_grep_command(symbol, target_path, workspace_root)
     try:
         result = await session.exec("bash", "-lc", command, timeout=45)
     except Exception as e:

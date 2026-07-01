@@ -43,18 +43,22 @@ def _coverage_gate(*, parent_id: str | None, is_whitebox: bool = False) -> dict[
         from strix.tools.coverage.tools import manifest_is_empty, pending_units
 
         if manifest_is_empty():
-            return {
-                "success": False,
-                "scan_completed": False,
-                "error": (
-                    "Coverage gate: no attack-surface units were registered for this "
-                    "whitebox scan. Enumerate the surface first — call "
-                    "seed_coverage_from_semgrep on your semgrep report, then "
-                    "add_coverage_units for routes/handlers/sinks — review each, and "
-                    "only then finish. This blocks finishing on an un-enumerated scan."
-                ),
-                "pending_count": 0,
-            } if is_whitebox else None
+            return (
+                {
+                    "success": False,
+                    "scan_completed": False,
+                    "error": (
+                        "Coverage gate: no attack-surface units were registered for this "
+                        "whitebox scan. Enumerate the surface first — call "
+                        "seed_coverage_from_semgrep on your semgrep report, then "
+                        "add_coverage_units for routes/handlers/sinks — review each, and "
+                        "only then finish. This blocks finishing on an un-enumerated scan."
+                    ),
+                    "pending_count": 0,
+                }
+                if is_whitebox
+                else None
+            )
         pending = pending_units()
     except Exception:
         logger.exception("coverage gate check failed; allowing finish")

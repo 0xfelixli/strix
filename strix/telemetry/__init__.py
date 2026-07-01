@@ -1,7 +1,1 @@
-from . import posthog, scarf
-
-
-__all__ = [
-    "posthog",
-    "scarf",
-]
+"""Local logging setup. External analytics (posthog/scarf) removed for the audit build."""
